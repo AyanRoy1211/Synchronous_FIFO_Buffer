@@ -1,76 +1,60 @@
-# Synchronous FIFO RTL Design and Verification
+# Comprehensive FIFO IP: Synchronous & Asynchronous (CDC) Designs
 
 ## 📌 Project Overview
-This repository contains a high-performance **Synchronous FIFO (First-In-First-Out)** buffer implemented in Verilog HDL. A FIFO is a critical component in digital systems for data buffering between modules. This specific implementation focuses on **parameterized design**, allowing for flexible data widths and depths while maintaining strict timing integrity.
+This repository contains RTL designs and functional verification environments for First-In-First-Out (FIFO) buffers, implemented in SystemVerilog. 
 
-This project demonstrates core VLSI competencies including:
-* **RTL Coding** (Verilog)
-* **Finite State Logic** & Pointer Management
-* **Functional Verification** via Testbenches
-* **Waveform Analysis**
+Initially starting as a standard buffer project, this repository has been expanded to include two distinct, industry-standard architectures: 
+1. A single-clock **Synchronous FIFO** for intra-domain data pipelining.
+2. A dual-clock **Asynchronous FIFO** specifically engineered for safe **Clock Domain Crossing (CDC)** applications.
 
-## 🏗️ Architecture & Design
-The design consists of a dual-port memory array and control logic to manage two independent pointers:
-1.  **Write Pointer (`w_ptr`):** Tracks the next available memory location for incoming data.
-2.  **Read Pointer (`r_ptr`):** Tracks the location of the next data word to be read out.
-3.  **Status Logic:** Generates `Full` and `Empty` flags by comparing pointers to prevent data loss (overflow) or invalid reads (underflow).
+This project demonstrates core VLSI and Front-End RTL competencies including:
+* **RTL Coding** (SystemVerilog)
+* **Clock Domain Crossing (CDC)** mitigations (Gray code, Multi-stage Synchronizers)
+* **Finite State Logic** & Advanced Pointer Management
+* **Functional Verification** via Self-checking Testbenches
 
+---
 
+## 🏗️ 1. Synchronous FIFO (Data Pipelining)
+The Synchronous FIFO utilizes a shared clock for both read and write operations, making it ideal for buffering data between logic blocks operating at the same frequency.
 
-## 🚀 Key Features
-* **Parameterized:** Easily adjust `DATA_WIDTH` and `FIFO_DEPTH` at instantiation.
-* **Synchronous Interface:** All operations are synchronized to a single clock edge.
-* **Flag Generation:** Includes `Full`, `Empty`, and `Almost_Full` flags for robust flow control.
-* **Asynchronous Reset:** Ensures a known safe state upon system power-up.
+### Key Features:
+* **Architecture:** Parameterized, power-of-2 depth (e.g., 16x8) circular buffer.
+* **Flow Control:** Includes programmable `almost_full` and `almost_empty` thresholds, crucial for AXI-stream data buffering and pipeline stalling.
+* **BRAM Inference:** Write logic is intentionally separated from reset domains to ensure synthesis tools infer highly efficient Block RAM (BRAM) instead of distributed logic.
+* **Pointer Logic:** Utilizes standard binary pointers (N+1 bits) for precise wrap-around detection and Full/Empty flag generation.
 
-## 🛠️ Technical Specifications
+---
 
-### Signal Descriptions
-| Signal | Type | Description |
-| :--- | :--- | :--- |
-| `clk` | Input | System Clock |
-| `rst_n` | Input | Active-Low Asynchronous Reset |
-| `w_en` | Input | Write Enable (High to push data) |
-| `r_en` | Input | Read Enable (High to pop data) |
-| `data_in` | Input | Input Data Bus |
-| `data_out` | Output | Output Data Bus |
-| `full` | Output | High when FIFO is at maximum capacity |
-| `empty` | Output | High when FIFO is empty |
+## 🏗️ 2. Asynchronous FIFO (CDC Applications)
+The Asynchronous FIFO is designed to safely transfer data between two independent, asynchronous clock domains without data corruption or metastability.
 
-### Parameter Constants
-* `DATA_WIDTH`: Default is **8 bits**.
-* `FIFO_DEPTH`: Default is **16 words**.
+### Key Features:
+* **Dual-Clock Architecture:** Completely isolated read (`rd_clk`) and write (`wr_clk`) domains.
+* **Clock Domain Crossing (CDC):** Safely passes control signals across asynchronous boundaries using 2-stage (2-flop) synchronizer chains to mitigate metastability.
+* **Gray Code Pointers:** Converts binary address pointers into **Gray Code** before synchronization. Because Gray code only flips one bit at a time, it completely prevents multi-bit CDC sampling errors during pointer evaluation.
+* **Pessimistic Flag Generation:** * The `Full` condition is evaluated in the write domain using a synchronized (delayed) read pointer, preventing overflow.
+  * The `Empty` condition is evaluated in the read domain using a synchronized write pointer, preventing underflow.
 
-## 📉 Simulation & Waveform
-The design was verified using **Icarus Verilog** and **GTKWave**. The testbench covers corner cases such as simultaneous read/write, overflow scenarios, and full-depth bursts.
+---
 
-### Waveform Preview
-*Below is a screenshot of the simulation showing successful pointer incrementing and flag transitions:*
+## 📉 Verification & Waveform Analysis
+Both designs include robust testbenches designed to verify functional correctness and boundary corner cases. Simulated using **Icarus Verilog** and analyzed via **EPWave/GTKWave**.
 
-![Waveform Analysis](waveform_screenshot.png) 
-*(Note: Replace this with your actual screenshot from EDA Playground or GTKWave)*
+### Test Scenarios Covered:
+* **Boundary Protections:** Attempting to write to a full FIFO (overflow protection) and read from an empty FIFO (underflow protection).
+* **Concurrent Operations:** Simultaneous, back-to-back read/write operations on the exact same clock edge.
+* **CDC Verification (Async):** Driving the read and write clocks at drastically different frequencies (e.g., 100MHz vs 40MHz) to prove data integrity and synchronizer delay handling across domains.
 
+---
 
+## 💻 How to Simulate (EDA Playground)
+The fastest way to simulate these designs and view the waveforms is via EDA Playground.
 
-## 💻 How to Simulate
-You can run this project locally or via a web-based simulator:
-
-### 1. Using EDA Playground (Recommended)
-1.  Go to [EDA Playground](https://www.edaplayground.com/).
-2.  Upload `fifo.v` and `fifo_tb.v`.
-3.  Select **Icarus Verilog** or **VCS** as the simulator.
-4.  Run and view the Waves.
-
-### 2. Local Simulation (Linux/Mac/WSL)
-```bash
-# Clone the repository
-git clone [https://github.com/AyanRoy1211/Synchronous-FIFO-RTL.git](https://github.com/AyanRoy1211/Synchronous-FIFO-RTL.git)
-
-# Compile the design
-iverilog -o fifo_sim fifo.v fifo_tb.v
-
-# Run simulation
-vvp fifo_sim
-
-# View waveform (requires GTKWave)
-gtkwave dump.vcd
+1. Go to [EDA Playground](https://www.edaplayground.com/).
+2. Copy the `design.sv` and `testbench.sv` files from either the `sync_fifo` or `async_fifo_cdc` folder.
+3. Paste the codes into the respective Design and Testbench windows.
+4. Select **Icarus Verilog** from the "Tools & Simulators" menu.
+5. Check the **"Open EPWave after run"** box.
+6. Click **Run**.
+7. In the EPWave window, click **"Get Signals"**, expand your module, and append the signals to view the timing diagrams and CDC flag generation.
